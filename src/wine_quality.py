@@ -140,7 +140,7 @@ def train_model(model, train_loader, test_loader, epochs=100, lr=0.001):
         'test_acc': []
     }
 
-    print("\n🚀 Training Wine Quality Classifier...\n")
+    print("\n Training Wine Quality Classifier...\n")
     print(f"{'Epoch':<8} {'Train Loss':<12} {'Train Acc':<12} {'Test Loss':<12} {'Test Acc':<12}")
     print("-" * 60)
 
@@ -221,7 +221,7 @@ def plot_training_history(history, save_path=None):
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=100, bbox_inches='tight')
-    print(f"\n✓ Training history plot saved to: {save_path}")
+    print(f"\n Training history plot saved to: {save_path}")
     plt.close()
 
     return save_path
@@ -230,12 +230,12 @@ def plot_training_history(history, save_path=None):
 def main():
     """Main training pipeline for wine quality classification."""
     banner("WINE QUALITY CLASSIFIER: PYTORCH IMPLEMENTATION")
-    print("\n🍷 Task: Binary classification (good wine vs not good wine)")
-    print("📚 Framework: PyTorch")
-    print("🏗️  Architecture: Input(11) → 64 → 32 → Output(2)\n")
+    print("\n Task: Binary classification (good wine vs not good wine)")
+    print(" Framework: PyTorch")
+    print(" Architecture: Input(11) → 64 → 32 → Output(2)\n")
 
     # Download and load data
-    print("📊 Downloading and loading wine quality dataset...")
+    print(" Downloading and loading wine quality dataset...")
     df = download_wine_data()
 
     # Prepare data
@@ -255,7 +255,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     # Create model
-    print("\n🔧 Creating neural network...")
+    print("\n Creating neural network...")
     model = WineNet(input_size=11, hidden_size=64, output_size=2)
     print(model)
 
@@ -277,9 +277,9 @@ def main():
     # Save model
     model_path = models_path("wine_quality_model.pth")
     torch.save(model.state_dict(), model_path)
-    print(f"\n✓ Model saved to: {model_path}")
+    print(f"\n Model saved to: {model_path}")
 
-    banner("🎉 WINE QUALITY CLASSIFICATION COMPLETE!")
+    banner(" WINE QUALITY CLASSIFICATION COMPLETE!")
 
 
 if __name__ == "__main__":

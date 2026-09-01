@@ -234,8 +234,8 @@ def load_and_prepare_data():
     """
     # Load dataset
     iris = load_iris()
-    X = iris.data  # Shape: (150, 4)
-    y = iris.target  # Shape: (150,)
+    X = iris.data # Shape: (150, 4)
+    y = iris.target # Shape: (150,)
 
     # Train-test split (80-20)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -249,8 +249,8 @@ def load_and_prepare_data():
 
     # One-hot encode labels
     # y=0 → [1,0,0], y=1 → [0,1,0], y=2 → [0,0,1]
-    Y_train = np.eye(3)[y_train].T  # Shape: (3, N_train)
-    Y_test = np.eye(3)[y_test].T    # Shape: (3, N_test)
+    Y_train = np.eye(3)[y_train].T # Shape: (3, N_train)
+    Y_test = np.eye(3)[y_test].T # Shape: (3, N_test)
 
     # Transpose X for our convention: (features, samples)
     X_train = X_train.T
@@ -291,7 +291,7 @@ def plot_training_history(nn, save_path=None):
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=100, bbox_inches='tight')
-    print(f"\n✓ Training history plot saved to: {save_path}")
+    print(f"\n Training history plot saved to: {save_path}")
     plt.close()
 
     return save_path
@@ -329,7 +329,7 @@ def evaluate_model(nn, X_test, Y_test, y_test):
         mask = y_test == i
         if np.sum(mask) > 0:
             class_acc = np.mean(predictions[mask] == y_test[mask])
-            print(f"  {name:12s}: {class_acc * 100:.2f}% ({np.sum(predictions[mask] == y_test[mask])}/{np.sum(mask)})")
+            print(f" {name:12s}: {class_acc * 100:.2f}% ({np.sum(predictions[mask] == y_test[mask])}/{np.sum(mask)})")
 
     # Show some predictions
     print("\nSample Predictions (first 10 test samples):")
@@ -348,16 +348,16 @@ def evaluate_model(nn, X_test, Y_test, y_test):
 def main():
     """Main function to run the complete training pipeline."""
     banner("IRIS CLASSIFIER: 2-LAYER NEURAL NETWORK FROM SCRATCH")
-    print("\n🧠 Architecture: Input(4) → Hidden(10, ReLU) → Output(3, Softmax)")
-    print("📚 Implementation: Pure NumPy (no deep learning frameworks)")
-    print("🎯 Task: Multi-class classification (3 species)\n")
+    print("\n Architecture: Input(4) → Hidden(10, ReLU) → Output(3, Softmax)")
+    print(" Implementation: Pure NumPy (no deep learning frameworks)")
+    print(" Task: Multi-class classification (3 species)\n")
 
     # Load and prepare data
-    print("📊 Loading and preprocessing data...")
+    print(" Loading and preprocessing data...")
     X_train, X_test, Y_train, Y_test, scaler = load_and_prepare_data()
 
     # Create neural network
-    print("\n🔧 Creating neural network...")
+    print("\n Creating neural network...")
     nn = NeuralNetwork(
         input_size=4,
         hidden_size=10,
@@ -366,7 +366,7 @@ def main():
     )
 
     # Train the network
-    print("\n🚀 Training neural network...\n")
+    print("\n Training neural network...\n")
     nn.train(X_train, Y_train, epochs=1500, verbose=True)
 
     # Evaluate on test set
@@ -374,11 +374,11 @@ def main():
     test_accuracy = evaluate_model(nn, X_test, Y_test, y_test_labels)
 
     # Plot training history
-    print("\n📈 Generating visualizations...")
+    print("\n Generating visualizations...")
     plot_path = plot_training_history(nn, plots_path("training_history.png"))
 
     # Save the model parameters
-    print("\n💾 Saving model parameters...")
+    print("\n Saving model parameters...")
     model_path = models_path("iris_model.npz")
     np.savez(
         model_path,
@@ -386,17 +386,17 @@ def main():
         loss_history=nn.loss_history,
         accuracy_history=nn.accuracy_history
     )
-    print(f"✓ Model saved to: {model_path}")
+    print(f" Model saved to: {model_path}")
 
     print("\n" + "=" * 60)
-    print("🎉 TRAINING COMPLETE!")
+    print(" TRAINING COMPLETE!")
     print("=" * 60)
     print(f"Final Test Accuracy: {test_accuracy * 100:.2f}%")
     print(f"Final Training Loss: {nn.loss_history[-1]:.4f}")
     print("\nNext steps:")
-    print("  - Check plots/training_history.png for visualizations")
-    print("  - Read docs/03_training_process.md for detailed analysis")
-    print("  - Try wine_quality.py for the next project!")
+    print(" - Check plots/training_history.png for visualizations")
+    print(" - Read docs/03_training_process.md for detailed analysis")
+    print(" - Try wine_quality.py for the next project!")
 
 
 if __name__ == "__main__":

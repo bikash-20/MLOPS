@@ -1,6 +1,6 @@
 # Wine Quality Dataset: From Simple to Realistic
 
-## 🍷 Dataset Overview
+## Dataset Overview
 
 The Wine Quality dataset is from the **UCI Machine Learning Repository**, featuring wines from the Portuguese *Vinho Verde* region. It's our bridge from textbook-perfect (Iris) to real-world messy data.
 
@@ -15,7 +15,7 @@ The Wine Quality dataset is from the **UCI Machine Learning Repository**, featur
 | **Storage Size** | ~250 KB |
 | **Source** | UCI ML Repository |
 
-## 📊 Features (Chemical Properties)
+## Features (Chemical Properties)
 
 1. **Fixed Acidity** - Tartaric acid content (g/dm³)
 2. **Volatile Acidity** - Acetic acid content (g/dm³)
@@ -29,13 +29,13 @@ The Wine Quality dataset is from the **UCI Machine Learning Repository**, featur
 10. **Sulphates** - Potassium sulphate content (g/dm³)
 11. **Alcohol** - Alcohol percentage (% vol.)
 
-## 🎯 Target Variable
+## Target Variable
 
 - **Quality**: Sensory score from 0 (very bad) to 10 (very excellent)
 - Median score: 6
 - Distribution is **imbalanced** (most wines are 5-6)
 
-## 🔄 Task Formulation
+## Task Formulation
 
 We have two options:
 
@@ -47,7 +47,7 @@ Classify wines as:
 ### Option 2: Regression
 Predict exact quality score (0-10)
 
-## 🧠 Why This Dataset is a Great Next Step
+## Why This Dataset is a Great Next Step
 
 ### 1. **More Realistic Challenges**
 - **Imbalanced classes**: Good wines are minority
@@ -66,7 +66,7 @@ Predict exact quality score (0-10)
 - Train/validation/test splits
 - Preventing overfitting
 
-## 🏗️ Our Architecture: Deeper Network
+## Our Architecture: Deeper Network
 
 ```
 Input (11) → Dense(64, ReLU) → Dropout(0.2) → Dense(32, ReLU) → Dropout(0.2) → Output(2)
@@ -78,7 +78,7 @@ Input (11) → Dense(64, ReLU) → Dropout(0.2) → Dense(32, ReLU) → Dropout(
 3. **Dropout regularization**: Prevents overfitting
 4. **PyTorch framework**: Industry standard
 
-## 🧮 Key Concepts Introduced
+## Key Concepts Introduced
 
 ### 1. Dropout Regularization
 During training, randomly "drop" neurons with probability $p$:
@@ -108,7 +108,7 @@ Instead of full-batch, we process data in batches of 32:
 - More stable than pure SGD
 - Better generalization
 
-## 📈 Expected Performance
+## Expected Performance
 
 | Metric | Expected Value |
 |--------|---------------|
@@ -117,7 +117,7 @@ Instead of full-batch, we process data in batches of 32:
 | **Recall (Good)** | 0.70-0.80 |
 | **F1 Score** | 0.75-0.82 |
 
-## 🔬 Key Differences: Iris vs Wine Quality
+## Key Differences: Iris vs Wine Quality
 
 | Aspect | Iris | Wine Quality |
 |--------|------|--------------|
@@ -128,7 +128,7 @@ Instead of full-batch, we process data in batches of 32:
 | **Framework** | NumPy (learning) | PyTorch (production) |
 | **Architecture** | Simple | Regularized |
 
-## 🧪 Experiments to Try
+## Experiments to Try
 
 ### Experiment 1: Architecture Depth
 ```python
@@ -163,20 +163,20 @@ criterion = nn.CrossEntropyLoss(weight=class_weights)
 # Option 3: SMOTE (Synthetic Minority Over-sampling)
 ```
 
-## 📊 Feature Importance
+## Feature Importance
 
 Based on typical wine chemistry knowledge:
 
 | Feature | Importance | Reason |
 |---------|-----------|--------|
-| **Alcohol** | ★★★★★ | Higher alcohol → better quality |
-| **Volatile Acidity** | ★★★★ | Too much → vinegar taste |
-| **Sulphates** | ★★★ | Preservative, affects taste |
-| **Citric Acid** | ★★★ | Adds freshness |
-| **Density** | ★★ | Correlated with sugar |
-| **pH** | ★★ | Affects taste balance |
+| **Alcohol** | | Higher alcohol → better quality |
+| **Volatile Acidity** | | Too much → vinegar taste |
+| **Sulphates** | | Preservative, affects taste |
+| **Citric Acid** | | Adds freshness |
+| **Density** | | Correlated with sugar |
+| **pH** | | Affects taste balance |
 
-## 🎓 Research Questions
+## Research Questions
 
 ### Q1: Can we predict wine quality from chemistry?
 **A:** Partially. Wine quality is also influenced by subjective factors and vintage. We can predict with ~85% accuracy for binary classification.
@@ -192,11 +192,11 @@ Based on typical wine chemistry knowledge:
 **A:** It prevents the network from relying too heavily on specific neurons, forcing it to learn more robust features.
 
 ### Q4: When to use PyTorch vs NumPy?
-**A:** 
+**A:**
 - **NumPy**: Learning, small datasets, full control
 - **PyTorch**: Production, large datasets, GPU acceleration, complex models
 
-## 🚀 Advanced Topics to Explore
+## Advanced Topics to Explore
 
 After mastering this dataset, consider:
 1. **Regression** (predict exact quality score)
@@ -205,7 +205,7 @@ After mastering this dataset, consider:
 4. **Ensemble methods** (multiple models)
 5. **Cross-validation** (k-fold for robust evaluation)
 
-## 📚 Key Takeaways
+## Key Takeaways
 
 1. **Real-world data is messier** than textbook datasets
 2. **Regularization is crucial** for preventing overfitting
@@ -215,4 +215,4 @@ After mastering this dataset, consider:
 
 ---
 
-**Conclusion:** The Wine Quality dataset teaches us that not all problems are as clean as Iris. We learn to handle class imbalance, prevent overfitting, and use industry-standard tools. These skills are essential for real-world ML! 🍷🧠
+**Conclusion:** The Wine Quality dataset teaches us that not all problems are as clean as Iris. We learn to handle class imbalance, prevent overfitting, and use industry-standard tools. These skills are essential for real-world ML!

@@ -2,11 +2,11 @@
 
 > A researcher's notebook documenting the journey from mathematical foundations to practical implementation of neural networks.
 
-## 🎯 Project Overview
+## Project Overview
 
 This project is a comprehensive exploration of neural networks, starting from first principles and progressing to real-world applications. We follow the scientific method: **observe, hypothesize, implement, evaluate, document**.
 
-## 📚 Datasets
+## Datasets
 
 ### 1. Iris Dataset (Phase 1)
 - **Samples**: 150 flowers
@@ -22,7 +22,7 @@ This project is a comprehensive exploration of neural networks, starting from fi
 - **Task**: Binary classification
 - **Implementation**: PyTorch
 
-## 🧮 Mathematical Foundations
+## Mathematical Foundations
 
 ### Core Equations
 
@@ -43,36 +43,36 @@ $$\frac{\partial L}{\partial z^{(L)}} = \hat{y} - y$$
 $$W^{(l)} := W^{(l)} - \alpha \frac{\partial L}{\partial W^{(l)}}$$
 $$b^{(l)} := b^{(l)} - \alpha \frac{\partial L}{\partial b^{(l)}}$$
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 neural-network/
-├── README.md                    # This file - research overview
-├── RUN_INSTRUCTIONS.md          # Step-by-step run guide
-├── requirements.txt             # Python dependencies
-├── iris_run.log                 # Captured Iris training output
-├── wine_run.log                 # Captured Wine training output
-├── docs/                        # Documentation
-│   ├── 01_iris_dataset.md       # Dataset exploration
-│   ├── 02_neural_network_theory.md  # Math & architecture
-│   ├── 03_training_process.md   # Training loop details
-│   ├── 04_results_analysis.md   # Evaluation & insights
-│   └── 05_wine_quality.md       # Second project
-├── models/                      # Saved trained models
-│   ├── iris_model.npz
-│   └── wine_quality_model.pth
-├── plots/                       # Visualizations
-│   ├── training_history.png
-│   └── wine_training_history.png
-├── data/                        # Downloaded datasets
-│   └── winequality-white.csv
-└── src/                         # Source code
-    ├── iris_classifier.py       # NumPy implementation
-    ├── wine_quality.py          # PyTorch implementation
-    └── utils.py                 # Shared helpers (paths, seeding, banner)
+├── README.md # This file - research overview
+├── RUN_INSTRUCTIONS.md # Step-by-step run guide
+├── requirements.txt # Python dependencies
+├── iris_run.log # Captured Iris training output
+├── wine_run.log # Captured Wine training output
+├── docs/ # Documentation
+│ ├── 01_iris_dataset.md # Dataset exploration
+│ ├── 02_neural_network_theory.md # Math & architecture
+│ ├── 03_training_process.md # Training loop details
+│ ├── 04_results_analysis.md # Evaluation & insights
+│ └── 05_wine_quality.md # Second project
+├── models/ # Saved trained models
+│ ├── iris_model.npz
+│ └── wine_quality_model.pth
+├── plots/ # Visualizations
+│ ├── training_history.png
+│ └── wine_training_history.png
+├── data/ # Downloaded datasets
+│ └── winequality-white.csv
+└── src/ # Source code
+ ├── iris_classifier.py # NumPy implementation
+ ├── wine_quality.py # PyTorch implementation
+ └── utils.py # Shared helpers (paths, seeding, banner)
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Install dependencies
@@ -83,7 +83,7 @@ cd src
 python iris_classifier.py
 ```
 
-## 📊 Results
+## Results
 
 | Dataset | Model | Test Accuracy | Final Loss | Epochs |
 |---------|-------|---------------|-----------|--------|
@@ -92,7 +92,7 @@ python iris_classifier.py
 
 Run logs and per-class breakdowns are stored in `iris_run.log` and `wine_run.log`.
 
-## 🔬 Research Methodology
+## Research Methodology
 
 As researchers, we follow these principles:
 1. **Document everything** - Every decision, every equation, every result
@@ -101,13 +101,13 @@ As researchers, we follow these principles:
 4. **Visualize results** - Loss curves, decision boundaries, confusion matrices
 5. **Question assumptions** - Why does this work? What could go wrong?
 
-## 📖 Learning Path
+## Learning Path
 
-1. ✅ Phase 1: Build neural network from scratch with Iris dataset (96.67% test acc)
-2. ✅ Phase 2: Apply to Wine Quality dataset with PyTorch (83.67% test acc)
+1. Phase 1: Build neural network from scratch with Iris dataset (96.67% test acc)
+2. Phase 2: Apply to Wine Quality dataset with PyTorch (83.67% test acc)
 3. ⏳ Phase 3: Advanced topics (regularization, optimization, architectures)
 
-## 🤝 Contributing
+## Contributing
 
 This is a personal research project, but insights and questions are welcome!
 
