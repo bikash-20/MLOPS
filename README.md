@@ -1,118 +1,177 @@
 # Neural Network Research Lab
 
-> A researcher's notebook documenting the journey from mathematical foundations to practical implementation of neural networks.
+> A production-ready ML engineering project documenting the journey from
+> mathematical foundations to deployable neural-network systems.
 
-## Project Overview
+## What's in here
 
-This project is a comprehensive exploration of neural networks, starting from first principles and progressing to real-world applications. We follow the scientific method: **observe, hypothesize, implement, evaluate, document**.
+Two neural-network implementations built from first principles, plus the
+engineering scaffolding expected of any modern ML system:
 
-## Datasets
+| Project | Stack | Task | Test accuracy |
+|---|---|---|---|
+| **Iris** | NumPy (no frameworks) | Multi-class classification (3 species) | ~97% |
+| **Wine Quality** | PyTorch MLP | Binary classification (good vs not good) | ~83% |
 
-### 1. Iris Dataset (Phase 1)
-- **Samples**: 150 flowers
-- **Features**: 4 (sepal length, sepal width, petal length, petal width)
-- **Classes**: 3 (Setosa, Versicolor, Virginica)
-- **Task**: Multi-class classification
-- **Implementation**: NumPy from scratch (no deep learning frameworks)
+Engineering layers: Hydra configs, MLflow tracking, pytest suite, FastAPI
+service, Docker + docker-compose, GitHub Actions CI, structured logging,
+versioned model registry.
 
-### 2. Wine Quality Dataset (Phase 2)
-- **Samples**: 4,898 white wines
-- **Features**: 11 chemical properties
-- **Target**: Quality score (0-10), binarised to "good" (≥7) vs "not good"
-- **Task**: Binary classification
-- **Implementation**: PyTorch
+## Quick Start
 
-## Mathematical Foundations
+```bash
+# 1. Install
+pip install -r requirements.txt
 
-### Core Equations
+# 2. Run the test suite (31 tests, ~2s)
+make test
 
-**Forward Propagation:**
-$$z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)}$$
-$$a^{(l)} = f(z^{(l)})$$
+# 3. Train the Iris classifier
+make train-iris
 
-**Softmax Activation (output layer):**
-$$\hat{y}_i = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}$$
+# 4. Train the Wine Quality classifier (100 epochs ~30s on CPU)
+make train-wine
 
-**Cross-Entropy Loss:**
-$$L = -\frac{1}{N} \sum_{i=1}^{N} \sum_{k=1}^{K} y_{ik} \log(\hat{y}_{ik})$$
+# 5. Inspect runs in the MLflow UI
+make mlflow-ui
+# open http://localhost:5000
 
-**Backpropagation (output layer):**
-$$\frac{\partial L}{\partial z^{(L)}} = \hat{y} - y$$
-
-**Gradient Updates:**
-$$W^{(l)} := W^{(l)} - \alpha \frac{\partial L}{\partial W^{(l)}}$$
-$$b^{(l)} := b^{(l)} - \alpha \frac{\partial L}{\partial b^{(l)}}$$
+# 6. Serve the Wine model as a REST API
+make api
+# open http://localhost:8000/docs
+```
 
 ## Project Structure
 
 ```
 neural-network/
-├── README.md # This file - research overview
-├── RUN_INSTRUCTIONS.md # Step-by-step run guide
-├── requirements.txt # Python dependencies
-├── iris_run.log # Captured Iris training output
-├── wine_run.log # Captured Wine training output
-├── docs/ # Documentation
-│ ├── 01_iris_dataset.md # Dataset exploration
-│ ├── 02_neural_network_theory.md # Math & architecture
-│ ├── 03_training_process.md # Training loop details
-│ ├── 04_results_analysis.md # Evaluation & insights
-│ └── 05_wine_quality.md # Second project
-├── models/ # Saved trained models
-│ ├── iris_model.npz
-│ └── wine_quality_model.pth
-├── plots/ # Visualizations
-│ ├── training_history.png
-│ └── wine_training_history.png
-├── data/ # Downloaded datasets
-│ └── winequality-white.csv
-└── src/ # Source code
- ├── iris_classifier.py # NumPy implementation
- ├── wine_quality.py # PyTorch implementation
- └── utils.py # Shared helpers (paths, seeding, banner)
+├── README.md                 # this file
+├── RUN_INSTRUCTIONS.md       # detailed run guide
+├── Makefile                  # one-liners for common tasks
+├── Dockerfile                # multi-stage container image
+├── docker-compose.yml        # api + mlflow services
+├── requirements.txt          # pinned dependencies
+├── pytest.ini                # pytest configuration
+│
+├── configs/                  # Hydra YAML configs
+│   ├── iris.yaml             # default Iris training config
+│   └── wine.yaml             # default Wine training config
+│
+├── src/
+│   ├── api/                  # FastAPI service
+│   ├── configs/              # typed dataclasses
+│   ├── data/                 # dataset loaders
+│   ├── evaluation/           # metrics
+│   ├── models/               # NeuralNetwork (NumPy) + WineNet (PyTorch)
+│   ├── tracking/             # MLflow wrapper
+│   ├── training/             # Hydra-decorated entrypoints
+│   ├── utils/                # paths, logging, reproducibility, display
+│   └── visualization/        # plot helpers
+│
+├── tests/
+│   ├── unit/                 # activations, loss, gradients, models
+│   ├── integration/          # training pipelines (smoke tests)
+│   └── api/                  # FastAPI TestClient
+│
+├── docs/
+│   ├── 01_iris_dataset.md
+│   ├── 02_neural_network_theory.md
+│   ├── 03_training_process.md
+│   ├── 04_results_analysis.md
+│   ├── 05_wine_quality.md
+│   ├── 06_configuration.md   # ← Hydra usage
+│   ├── 07_experiment_tracking.md   # ← MLflow usage
+│   ├── 08_testing.md         # ← pytest guide
+│   ├── 09_api.md             # ← FastAPI endpoints
+│   └── 10_deployment.md      # ← Docker + cloud
+│
+├── data/
+│   ├── raw/                  # downloaded UCI wine CSV
+│   ├── processed/            # scalers, tensor snapshots
+│   └── external/             # third-party data
+│
+├── models/                   # versioned model registry
+│   ├── iris/v1/{model.npz,scaler.joblib,config.yaml,metrics.json}
+│   └── wine_quality/v1/{model.pth,scaler.joblib,config.yaml,metrics.json}
+│
+├── plots/                    # training-curve PNGs
+├── mlruns/                   # MLflow SQLite + artifacts (gitignored)
+└── reports/                  # generated analysis (gitignored)
 ```
 
-## Quick Start
+## Datasets
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+### Iris (Phase 1)
+- 150 flowers, 4 features, 3 species
+- Loaded from scikit-learn, no download required
+- See [docs/01_iris_dataset.md](docs/01_iris_dataset.md)
 
-# Train Iris classifier
-cd src
-python iris_classifier.py
-```
+### Wine Quality (Phase 2)
+- 4,898 white wines, 11 chemical features, binarised as good (≥7) vs not good
+- Auto-downloaded from UCI on first run to `data/raw/winequality-white.csv`
+- See [docs/05_wine_quality.md](docs/05_wine_quality.md)
+
+## Mathematical Foundations
+
+**Forward:**
+$$z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)}, \quad a^{(l)} = f(z^{(l)})$$
+
+**Softmax:**
+$$\hat{y}_i = \frac{e^{z_i}}{\sum_j e^{z_j}}$$
+
+**Cross-Entropy Loss:**
+$$L = -\frac{1}{N} \sum_i \sum_k y_{ik} \log(\hat{y}_{ik})$$
+
+**Backprop (output):**
+$$\frac{\partial L}{\partial z^{(L)}} = \hat{y} - y$$
+
+**Gradient updates:**
+$$W^{(l)} := W^{(l)} - \alpha \frac{\partial L}{\partial W^{(l)}}$$
 
 ## Results
 
 | Dataset | Model | Test Accuracy | Final Loss | Epochs |
-|---------|-------|---------------|-----------|--------|
-| Iris | 2-layer NN (NumPy) | **96.67%** | 0.0414 | 1500 |
-| Wine Quality | 64→32 MLP + Dropout (PyTorch) | **83.67%** | 0.3433 | 100 |
+|---|---|---|---|---|
+| Iris | 2-layer NumPy NN (4→10→3) | ~97% | ~0.04 | 1500 |
+| Wine Quality | 11→64→32→2 MLP + Dropout | ~83% | ~0.34 | 100 |
 
-Run logs and per-class breakdowns are stored in `iris_run.log` and `wine_run.log`.
+## Common Tasks
+
+```bash
+# Override hyperparameters from the CLI
+python -m src.training.train_wine model.hidden_sizes=[128,64] train.epochs=50
+
+# Run only unit tests
+make test-unit
+
+# Lint
+make lint
+
+# Format
+make format
+
+# Build and run the container
+make docker-build
+make docker-run
+
+# Start api + mlflow together
+make docker-up
+```
 
 ## Research Methodology
 
-As researchers, we follow these principles:
-1. **Document everything** - Every decision, every equation, every result
-2. **Understand first** - Math before code, theory before implementation
-3. **Experiment systematically** - Change one variable at a time
-4. **Visualize results** - Loss curves, decision boundaries, confusion matrices
-5. **Question assumptions** - Why does this work? What could go wrong?
-
-## Learning Path
-
-1. Phase 1: Build neural network from scratch with Iris dataset (96.67% test acc)
-2. Phase 2: Apply to Wine Quality dataset with PyTorch (83.67% test acc)
-3. ⏳ Phase 3: Advanced topics (regularization, optimization, architectures)
+1. **Document everything** — every decision, equation, result
+2. **Understand first** — math before code, theory before implementation
+3. **Experiment systematically** — change one variable at a time
+4. **Visualize** — loss curves, confusion matrices
+5. **Question assumptions** — why does this work? What could go wrong?
 
 ## Contributing
 
-This is a personal research project, but insights and questions are welcome!
+Personal research project — insights and questions welcome!
 
 ---
 
 **Started**: 2026-09-02
 **Researcher**: Bikash Talukder
-**Institution**: Harvard University (fictional) → Google DeepMind (aspirational)
+**Status**: Production-ready scaffold complete

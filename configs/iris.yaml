@@ -1,0 +1,24 @@
+# Iris training config — single-file, fully self-contained.
+# Override any value from the CLI:
+#   python -m src.training.train_iris train.epochs=500 model.hidden_size=20
+
+project: iris
+
+data:
+  test_size: 0.2
+  random_seed: 42
+
+model:
+  name: iris_2layer
+  input_size: 4
+  hidden_size: 10
+  output_size: 3
+  learning_rate: 0.1
+
+train:
+  learning_rate: 0.1
+  epochs: 1500
+  batch_size: 1
+  log_every: 100
+  mlflow_tracking_uri: null
+  mlflow_experiment: iris-classifier

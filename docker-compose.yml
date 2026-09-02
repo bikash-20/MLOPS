@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wine-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models read-only so a re-trained model is picked up without rebuild.
+      - ./models:/app/models:ro
+    environment:
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.0
+    container_name: wine-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri sqlite:///mlflow/mlflow.db
+        --default-artifact-root /mlflow/mlruns
+    restart: unless-stopped

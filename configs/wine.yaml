@@ -1,0 +1,26 @@
+# Wine Quality training config — single-file, fully self-contained.
+# Override any value from the CLI:
+#   python -m src.training.train_wine model.hidden_sizes=[128,64] train.epochs=50
+
+project: wine
+
+data:
+  test_size: 0.2
+  random_seed: 42
+  binary: true
+  good_threshold: 7
+
+model:
+  name: wine_mlp
+  input_size: 11
+  hidden_sizes: [64, 32]
+  output_size: 2
+  dropout: 0.2
+
+train:
+  learning_rate: 0.001
+  epochs: 100
+  batch_size: 32
+  log_every: 10
+  mlflow_tracking_uri: null
+  mlflow_experiment: wine-quality

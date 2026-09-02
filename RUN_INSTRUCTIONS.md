@@ -2,216 +2,131 @@
 
 ## Prerequisites
 
-Make sure you have Python 3.8+ installed. You're using Python 3.14.2 which is perfect!
+Python 3.8+. You're on Python 3.14 — works thanks to a tiny compat shim.
 
-## Installation
-
-### Step 1: Install Dependencies
+## Install
 
 ```bash
-cd ~/Coding/neural-network
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-Or install manually:
-```bash
-pip3 install numpy scikit-learn matplotlib pandas torch seaborn
-```
+(Or `make install`.)
 
-### Step 2: Verify Installation
+## Run
 
-```bash
-python3 -c "import numpy, sklearn, matplotlib; print('All packages installed!')"
-```
+All commands use the project root as CWD.
 
-## Project 1: Iris Classifier (NumPy from Scratch)
-
-### Run Training
+### Iris classifier (NumPy from scratch)
 
 ```bash
-cd ~/Coding/neural-network/src
-python3 iris_classifier.py
+# via Make
+make train-iris
+
+# or directly
+python -m src.training.train_iris
+
+# override hyperparameters
+python -m src.training.train_iris train.epochs=500 model.hidden_size=20
 ```
 
-### Expected Output
-
-```
-============================================================
-IRIS CLASSIFIER: 2-LAYER NEURAL NETWORK FROM SCRATCH
-============================================================
-
- Architecture: Input(4) → Hidden(10, ReLU) → Output(3, Softmax)
- Implementation: Pure NumPy (no deep learning frameworks)
- Task: Multi-class classification (3 species)
-
- Loading and preprocessing data...
-Training set: 120 samples
-Test set: 30 samples
-Feature dimension: 4
-Classes: ['setosa' 'versicolor' 'virginica']
-
- Creating neural network...
-
- Training neural network...
-
-Epoch 100 | Loss: 0.8234 | Accuracy: 0.6500
-Epoch 200 | Loss: 0.5432 | Accuracy: 0.8200
-Epoch 300 | Loss: 0.3421 | Accuracy: 0.9200
-Epoch 500 | Loss: 0.1234 | Accuracy: 0.9700
-Epoch 750 | Loss: 0.0543 | Accuracy: 0.9900
-Epoch 1000 | Loss: 0.0234 | Accuracy: 1.0000
-
-============================================================
-MODEL EVALUATION ON TEST SET
-============================================================
-Test Accuracy: 96.67%
-Correct Predictions: 29/30
-
-Per-Class Performance:
- Setosa : 100.00% (10/10)
- Versicolor : 90.00% (9/10)
- Virginica : 100.00% (10/10)
-
- Generating visualizations...
- Training history plot saved to: ../plots/training_history.png
-
- Saving model parameters...
- Model saved to: ../models/iris_model.npz
-
- TRAINING COMPLETE!
-```
-
-### What Happens
-
-1. **Loads Iris dataset** (150 samples, 4 features, 3 classes)
-2. **Preprocesses data** (standardization, one-hot encoding)
-3. **Trains 2-layer NN** for 1000 epochs
-4. **Evaluates on test set** (30 samples)
-5. **Generates loss/accuracy plots**
-6. **Saves model** to `models/iris_model.npz`
-
-## Project 2: Wine Quality Classifier (PyTorch)
-
-### Run Training
+### Wine Quality classifier (PyTorch)
 
 ```bash
-cd ~/Coding/neural-network/src
-python3 wine_quality.py
+make train-wine
+# or
+python -m src.training.train_wine
+
+# override
+python -m src.training.train_wine model.hidden_sizes=[128,64] train.epochs=50
 ```
 
-### Expected Output
+### Inspect runs
+
+```bash
+make mlflow-ui
+# open http://localhost:5000
+```
+
+### Serve the Wine model as an API
+
+```bash
+make api
+# open http://localhost:8000/docs
+```
+
+### Run the test suite
+
+```bash
+make test            # all tests
+make test-unit       # unit only
+make test-api        # API only
+```
+
+### Docker
+
+```bash
+make docker-build    # build image
+make docker-run      # run API on port 8000
+make docker-up       # api + mlflow together
+make docker-down     # stop and remove
+```
+
+## Old Entry Points (deprecated, still work)
+
+The original scripts are now thin shims that print a deprecation warning
+and forward to the new entrypoints. Prefer the new commands above.
+
+```bash
+python src/iris_classifier.py   # → python -m src.training.train_iris
+python src/wine_quality.py      # → python -m src.training.train_wine
+```
+
+## Outputs
+
+After training, you'll find:
 
 ```
-============================================================
-WINE QUALITY CLASSIFIER: PYTORCH IMPLEMENTATION
-============================================================
+models/
+├── iris/v1/
+│   ├── model.npz           # NumPy weights + history
+│   ├── scaler.joblib       # StandardScaler
+│   ├── config.yaml         # frozen Hydra config
+│   └── metrics.json        # accuracy, precision, recall, f1
+└── wine_quality/v1/
+    ├── model.pth           # PyTorch state_dict
+    ├── scaler.joblib
+    ├── config.yaml
+    ├── metrics.json
+    └── feature_names.json
 
- Task: Binary classification (good wine vs not good wine)
- Framework: PyTorch
- Architecture: Input(11) → 64 → 32 → Output(2)
+plots/
+├── training_history.png
+└── wine_training_history.png
 
- Downloading and loading wine quality dataset...
-Dataset shape: (4898, 12)
-
-Binary Classification: Good (>=7) vs Not Good (<7)
-Class distribution: [3458 1440]
-
-Training set: 3918 samples
-Test set: 980 samples
-
- Creating neural network...
-
- Training Wine Quality Classifier...
-
-Epoch Train Loss Train Acc Test Loss Test Acc
-------------------------------------------------------------
-1 0.6234 0.7456 0.5892 0.7837
-10 0.3456 0.8567 0.3421 0.8593
-50 0.2456 0.8923 0.2789 0.8765
-100 0.1987 0.9156 0.2654 0.8812
-
- WINE QUALITY CLASSIFICATION COMPLETE!
+mlruns/
+└── mlflow.db               # MLflow tracking database
 ```
 
 ## Troubleshooting
 
-### Issue: "ModuleNotFoundError: No module named 'numpy'"
-**Solution:** Install dependencies:
-```bash
-pip3 install -r requirements.txt
-```
+**Hydra complains about struct mode**: This repo includes
+`src/utils/hydra_compat.py` which monkey-patches argparse for
+Hydra 1.3.x + Python 3.14 compatibility. If you see the error, make sure
+your entrypoint imports `src.utils.hydra_compat` BEFORE `hydra.main` is
+called. Both training scripts already do this.
 
-### Issue: "Permission denied" when running scripts
-**Solution:** Make scripts executable:
-```bash
-chmod +x src/iris_classifier.py
-python3 src/iris_classifier.py
-```
+**`mlflow.exceptions.MlflowException: filesystem tracking backend`**: MLflow
+3.x removed file-based tracking. The `MlflowLogger` defaults to a local
+SQLite database at `mlruns/mlflow.db`. To use a custom URI, pass
+`tracking_uri` when constructing it.
 
-### Issue: Matplotlib not showing plots
-**Solution:** Plots are saved to `plots/` directory. Open them manually:
-```bash
-open plots/training_history.png # macOS
-```
+**API returns 503**: Model not trained yet. Run `make train-wine` first.
 
-### Issue: PyTorch installation fails
-**Solution:** PyTorch is large. Install separately:
-```bash
-pip3 install torch --index-url https://download.pytorch.org/whl/cpu
-```
-
-## What Gets Generated
-
-After running both projects:
-
-```
-neural-network/
-├── plots/
-│ ├── training_history.png # Iris loss/accuracy curves
-│ └── wine_training_history.png # Wine quality curves
-├── models/
-│ ├── iris_model.npz # Saved Iris model
-│ └── wine_quality_model.pth # Saved Wine model
-└── data/
- └── winequality-white.csv # Downloaded wine data
-```
-
-## Learning Path
-
-1. **Read documentation** in order:
- - `docs/01_iris_dataset.md` - Dataset basics
- - `docs/02_neural_network_theory.md` - Math & theory
- - `docs/03_training_process.md` - Training details
- - `docs/04_results_analysis.md` - Results interpretation
- - `docs/05_wine_quality.md` - Second project
-
-2. **Run Iris classifier** and observe results
-
-3. **Experiment** with hyperparameters:
- - Change learning rate in `iris_classifier.py`
- - Try different hidden layer sizes
- - Adjust number of epochs
-
-4. **Run Wine Quality** classifier
-
-5. **Compare results** between projects
-
-## Tips for Success
-
-- **Start with Iris** - simpler, builds foundation
-- **Read the code comments** - they explain every step
-- **Check the docs** - they explain the math
-- **Experiment freely** - change hyperparameters and see what happens
-- **Visualize results** - look at the generated plots
+**Tests fail with import errors**: Ensure `PYTHONPATH=.` is set when
+running pytest directly, or use `make test`.
 
 ## Need Help?
 
-If you encounter issues:
-1. Check the documentation files
-2. Verify all dependencies are installed
-3. Make sure you're in the correct directory
-4. Check Python version (3.8+ required)
-
----
-
-**Happy Learning! **
+- Read the docs in `docs/` — start with `06_configuration.md` and `09_api.md`.
+- Run `make help` for a list of targets.
+- Open an issue.
