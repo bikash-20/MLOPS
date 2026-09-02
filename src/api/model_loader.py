@@ -1,11 +1,17 @@
-"""Lazy, cached loader for the wine-quality model and its preprocessing.
+"""Lazy, cached loader for the wine-quality and MNIST CNN models.
 
-Loads ``model.pth``, ``scaler.joblib``, and ``feature_names.json`` from a
-versioned registry directory. Thread-safe singleton via module-level state.
+The wine registry loads ``model.pth``, ``scaler.joblib``, and
+``feature_names.json`` from a versioned registry directory.
+
+The MNIST registry loads ``model.pth`` and ``model_arch.json``, and serves
+predictions from 28x28 grayscale PNG uploads via PIL.
+
+Both are thread-safe singletons via module-level state.
 """
 
 from __future__ import annotations
 
+import io
 import json
 import os
 from pathlib import Path
@@ -14,7 +20,9 @@ from typing import Any
 import joblib
 import numpy as np
 import torch
+from PIL import Image
 
+from src.models.mnist_cnn import SimpleCNN
 from src.models.wine_nn import WineNet
 from src.utils import get_logger, models_path
 
@@ -178,4 +186,154 @@ def get_registry() -> ModelRegistry:
     return _singleton
 
 
-__all__ = ["ModelRegistry", "get_registry"]
+# --- MNIST registry --------------------------------------------------------
+
+
+class MnistRegistry:
+    """Loads and serves a single versioned MNIST CNN (28x28 grayscale).
+
+    Unlike ``ModelRegistry`` (wine), this registry does not need a scaler:
+    inputs are PNG/JPEG bytes that get preprocessed into a normalised
+    ``[0, 1]`` ``[1, 1, 28, 28]`` float tensor at inference time.
+    """
+
+    def __init__(
+        self,
+        project: str = "mnist",
+        version: str = "v1",
+        model_dir: str | None = None,
+        image_size: int = 28,
+    ) -> None:
+        self.project = project
+        self.version = version
+        self.image_size = int(image_size)
+        self._model: SimpleCNN | None = None
+        self._class_names: list[str] | None = None
+        self._metrics: dict[str, Any] | None = None
+        self._explicit_dir: str | None = model_dir
+
+    @property
+    def model_dir(self) -> str:
+        if self._explicit_dir is not None:
+            return self._explicit_dir
+        return models_path(f"{self.project}/{self.version}")
+
+    @property
+    def is_loaded(self) -> bool:
+        return self._model is not None
+
+    def load(self, model_cfg: dict[str, Any] | None = None) -> None:
+        """Load CNN weights and metadata.
+
+        ``model_cfg`` should match the keys in ``model_arch.json`` written by
+        ``train_mnist.py`` (``in_channels``, ``conv_channels``, ``fc_hidden``,
+        ``num_classes``, ``dropout``).
+        """
+        if not Path(self.model_dir).exists():
+            raise FileNotFoundError(
+                f"Model registry not found: {self.model_dir}. "
+                "Train first: `python -m src.training.train_mnist`."
+            )
+
+        logger.info("Loading MNIST model from %s", self.model_dir)
+
+        if model_cfg is None:
+            arch_path = os.path.join(self.model_dir, "model_arch.json")
+            if Path(arch_path).exists():
+                with open(arch_path) as f:
+                    model_cfg = json.load(f)
+            else:
+                # Reasonable defaults; matches the values in configs/mnist.yaml.
+                model_cfg = {
+                    "in_channels": 1,
+                    "conv_channels": [32, 64],
+                    "fc_hidden": 128,
+                    "num_classes": 10,
+                    "dropout": 0.25,
+                }
+
+        self._model = SimpleCNN(
+            in_channels=int(model_cfg.get("in_channels", 1)),
+            conv_channels=tuple(model_cfg.get("conv_channels", [32, 64])),
+            fc_hidden=int(model_cfg.get("fc_hidden", 128)),
+            num_classes=int(model_cfg.get("num_classes", 10)),
+            dropout=float(model_cfg.get("dropout", 0.25)),
+        )
+        state_path = os.path.join(self.model_dir, "model.pth")
+        self._model.load_state_dict(
+            torch.load(state_path, map_location="cpu"),
+        )
+        self._model.eval()
+
+        class_names_path = os.path.join(self.model_dir, "class_names.json")
+        if Path(class_names_path).exists():
+            self._class_names = json.loads(Path(class_names_path).read_text())
+        else:
+            self._class_names = [str(i) for i in range(int(model_cfg.get("num_classes", 10)))]
+
+        metrics_path = os.path.join(self.model_dir, "metrics.json")
+        if Path(metrics_path).exists():
+            self._metrics = json.loads(Path(metrics_path).read_text())
+
+    def predict(self, image_bytes: bytes) -> dict[str, Any]:
+        """Run inference on raw image bytes.
+
+        Args:
+            image_bytes: PNG/JPEG file contents.
+
+        Returns:
+            Dict with ``label``, ``confidence``, ``probabilities``,
+            ``model_version``.
+        """
+        if not self.is_loaded:
+            raise RuntimeError("Model is not loaded. Call .load() first.")
+
+        assert self._class_names is not None
+        tensor = self._preprocess(image_bytes)
+
+        with torch.no_grad():
+            logits = self._model(tensor)
+            probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+
+        idx = int(np.argmax(probs))
+        return {
+            "label": self._class_names[idx],
+            "confidence": float(probs[idx]),
+            "probabilities": {c: float(p) for c, p in zip(self._class_names, probs)},
+            "model_version": self.version,
+        }
+
+    def _preprocess(self, image_bytes: bytes) -> torch.Tensor:
+        """Decode bytes -> PIL -> 28x28 grayscale -> normalised tensor."""
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+        except Exception as exc:
+            raise ValueError(f"Could not decode image: {exc}") from exc
+
+        # Convert to grayscale regardless of source mode (RGBA, P, L, RGB...).
+        img = img.convert("L")
+        # Resize with bilinear (matches torchvision's ToTensor expectations).
+        if img.size != (self.image_size, self.image_size):
+            img = img.resize(
+                (self.image_size, self.image_size),
+                resample=Image.Resampling.BILINEAR,
+            )
+        arr = np.asarray(img, dtype=np.float32) / 255.0
+        # Shape (28, 28) -> (1, 28, 28) -> (1, 1, 28, 28)
+        tensor = torch.from_numpy(arr).unsqueeze(0).unsqueeze(0)
+        return tensor
+
+
+_mnist_singleton: MnistRegistry | None = None
+
+
+def get_mnist_registry() -> MnistRegistry:
+    """Return the process-wide MNIST registry singleton (lazy-loaded)."""
+    global _mnist_singleton
+    if _mnist_singleton is None:
+        _mnist_singleton = MnistRegistry()
+        _mnist_singleton.load()
+    return _mnist_singleton
+
+
+__all__ = ["MnistRegistry", "ModelRegistry", "get_mnist_registry", "get_registry"]

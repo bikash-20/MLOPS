@@ -5,17 +5,18 @@
 
 ## What's in here
 
-Two neural-network implementations built from first principles, plus the
+Three neural-network implementations built from first principles, plus the
 engineering scaffolding expected of any modern ML system:
 
 | Project | Stack | Task | Test accuracy |
 |---|---|---|---|
 | **Iris** | NumPy (no frameworks) | Multi-class classification (3 species) | ~97% |
 | **Wine Quality** | PyTorch MLP | Binary classification (good vs not good) | ~83% |
+| **MNIST** | PyTorch CNN (3-layer) | Multi-class classification (10 digits) | ~99% |
 
 Engineering layers: Hydra configs, MLflow tracking, pytest suite, FastAPI
-service, Docker + docker-compose, GitHub Actions CI, structured logging,
-versioned model registry.
+service, Docker + docker-compose, Modal serverless deploy, GitHub Actions
+CI, structured logging, versioned model registry.
 
 ## Quick Start
 
@@ -23,7 +24,7 @@ versioned model registry.
 # 1. Install
 pip install -r requirements.txt
 
-# 2. Run the test suite (31 tests, ~2s)
+# 2. Run the test suite (43 tests, ~2s)
 make test
 
 # 3. Train the Iris classifier
@@ -32,14 +33,30 @@ make train-iris
 # 4. Train the Wine Quality classifier (100 epochs ~30s on CPU)
 make train-wine
 
-# 5. Inspect runs in the MLflow UI
+# 5. Train the MNIST CNN (downloads MNIST on first run, ~90s on CPU)
+make train-mnist
+
+# 6. Inspect runs in the MLflow UI
 make mlflow-ui
 # open http://localhost:5000
 
-# 6. Serve the Wine model as a REST API
+# 7. Serve the Wine + MNIST models as a REST API
 make api
 # open http://localhost:8000/docs
 ```
+
+## Live Demo
+
+The same API is also deployed to Modal (serverless, free tier) — one
+URL serves both wine and MNIST:
+
+```bash
+make deploy      # one-time: builds image and pushes to Modal
+                 # prints a URL like https://<you>--neural-network-api-fastapi-app.modal.run
+```
+
+See [docs/10_deployment.md](docs/10_deployment.md#serverless-modal) for
+the full setup.
 
 ## Project Structure
 
@@ -55,18 +72,22 @@ neural-network/
 │
 ├── configs/                  # Hydra YAML configs
 │   ├── iris.yaml             # default Iris training config
-│   └── wine.yaml             # default Wine training config
+│   ├── wine.yaml             # default Wine training config
+│   └── mnist.yaml            # default MNIST training config
 │
 ├── src/
-│   ├── api/                  # FastAPI service
+│   ├── api/                  # FastAPI service (wine + MNIST endpoints)
 │   ├── configs/              # typed dataclasses
 │   ├── data/                 # dataset loaders
 │   ├── evaluation/           # metrics
-│   ├── models/               # NeuralNetwork (NumPy) + WineNet (PyTorch)
+│   ├── models/               # NeuralNetwork (NumPy) + WineNet + SimpleCNN
 │   ├── tracking/             # MLflow wrapper
 │   ├── training/             # Hydra-decorated entrypoints
 │   ├── utils/                # paths, logging, reproducibility, display
 │   └── visualization/        # plot helpers
+│
+├── deploy/
+│   └── modal_app.py          # one-command Modal deploy
 │
 ├── tests/
 │   ├── unit/                 # activations, loss, gradients, models
@@ -82,17 +103,19 @@ neural-network/
 │   ├── 06_configuration.md   # ← Hydra usage
 │   ├── 07_experiment_tracking.md   # ← MLflow usage
 │   ├── 08_testing.md         # ← pytest guide
-│   ├── 09_api.md             # ← FastAPI endpoints
-│   └── 10_deployment.md      # ← Docker + cloud
+│   ├── 09_api.md             # ← FastAPI endpoints (wine + MNIST)
+│   ├── 10_deployment.md      # ← Docker + Modal + cloud
+│   └── 11_mnist.md           # ← Third project: CNN on MNIST
 │
 ├── data/
-│   ├── raw/                  # downloaded UCI wine CSV
+│   ├── raw/                  # downloaded UCI wine CSV + MNIST
 │   ├── processed/            # scalers, tensor snapshots
 │   └── external/             # third-party data
 │
 ├── models/                   # versioned model registry
 │   ├── iris/v1/{model.npz,scaler.joblib,config.yaml,metrics.json}
-│   └── wine_quality/v1/{model.pth,scaler.joblib,config.yaml,metrics.json}
+│   ├── wine_quality/v1/{model.pth,scaler.joblib,config.yaml,metrics.json}
+│   └── mnist/v1/{model.pth,model_arch.json,config.yaml,metrics.json,class_names.json}
 │
 ├── plots/                    # training-curve PNGs
 ├── mlruns/                   # MLflow SQLite + artifacts (gitignored)
@@ -110,6 +133,11 @@ neural-network/
 - 4,898 white wines, 11 chemical features, binarised as good (≥7) vs not good
 - Auto-downloaded from UCI on first run to `data/raw/winequality-white.csv`
 - See [docs/05_wine_quality.md](docs/05_wine_quality.md)
+
+### MNIST (Phase 3)
+- 60,000 training + 10,000 test images of handwritten digits (0-9)
+- 28x28 grayscale; auto-downloaded by torchvision into `data/raw/MNIST/`
+- See [docs/11_mnist.md](docs/11_mnist.md)
 
 ## Mathematical Foundations
 
@@ -134,12 +162,14 @@ $$W^{(l)} := W^{(l)} - \alpha \frac{\partial L}{\partial W^{(l)}}$$
 |---|---|---|---|---|
 | Iris | 2-layer NumPy NN (4→10→3) | ~97% | ~0.04 | 1500 |
 | Wine Quality | 11→64→32→2 MLP + Dropout | ~83% | ~0.34 | 100 |
+| MNIST | 3-layer CNN (Conv×2 → FC → 10) | ~99% | ~0.03 | 5 |
 
 ## Common Tasks
 
 ```bash
 # Override hyperparameters from the CLI
 python -m src.training.train_wine model.hidden_sizes=[128,64] train.epochs=50
+python -m src.training.train_mnist train.epochs=10 model.dropout=0.5
 
 # Run only unit tests
 make test-unit
@@ -156,6 +186,9 @@ make docker-run
 
 # Start api + mlflow together
 make docker-up
+
+# Deploy the unified API to Modal (serverless, public URL)
+make deploy
 ```
 
 ## Research Methodology

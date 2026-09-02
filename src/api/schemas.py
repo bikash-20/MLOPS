@@ -1,4 +1,4 @@
-"""Pydantic request/response schemas for the wine-quality API."""
+"""Pydantic request/response schemas for the wine + MNIST APIs."""
 
 from __future__ import annotations
 
@@ -50,3 +50,15 @@ class ErrorResponse(BaseModel):
     """Standard error envelope."""
 
     detail: str
+
+
+# --- MNIST schemas ---------------------------------------------------------
+
+
+class MnistPredictionResponse(BaseModel):
+    """API response for a single MNIST digit prediction."""
+
+    label: str = Field(..., description="predicted digit 0-9")
+    confidence: float = Field(..., ge=0, le=1)
+    probabilities: dict[str, float]
+    model_version: str

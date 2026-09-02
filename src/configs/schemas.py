@@ -99,6 +99,35 @@ class WineTrainConfig:
     mlflow_experiment: str = "wine-quality"
 
 
+# --- MNIST-specific configs (no inheritance — Hydra struct-friendly) -------
+
+
+@dataclass
+class MnistDataConfig:
+    test_size: float = 0.0  # MNIST uses fixed 60k/10k split
+    random_seed: int = 42
+
+
+@dataclass
+class MnistModelConfig:
+    name: str = "mnist_cnn"
+    in_channels: int = 1
+    conv_channels: tuple[int, ...] = (32, 64)
+    fc_hidden: int = 128
+    num_classes: int = 10
+    dropout: float = 0.25
+
+
+@dataclass
+class MnistTrainConfig:
+    learning_rate: float = 0.001
+    epochs: int = 5
+    batch_size: int = 128
+    log_every: int = 1
+    mlflow_tracking_uri: str | None = None
+    mlflow_experiment: str = "mnist-cnn"
+
+
 # --- Top-level Configs (kept for direct programmatic use) ------------------
 
 

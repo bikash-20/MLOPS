@@ -1,0 +1,25 @@
+# MNIST training config — single-file, fully self-contained.
+# Override any value from the CLI:
+#   python -m src.training.train_mnist train.epochs=10 model.dropout=0.5
+
+project: mnist
+
+data:
+  test_size: 0.0
+  random_seed: 42
+
+model:
+  name: mnist_cnn
+  in_channels: 1
+  conv_channels: [32, 64]
+  fc_hidden: 128
+  num_classes: 10
+  dropout: 0.25
+
+train:
+  learning_rate: 0.001
+  epochs: 5
+  batch_size: 128
+  log_every: 1
+  mlflow_tracking_uri: null
+  mlflow_experiment: mnist-cnn

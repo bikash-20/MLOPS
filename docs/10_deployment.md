@@ -1,7 +1,8 @@
 # Deployment
 
-This project ships three deployment surfaces: a local uvicorn process,
-a container image, and a docker-compose orchestration.
+This project ships four deployment surfaces: a local uvicorn process,
+a container image, a docker-compose orchestration, and a one-click
+serverless deploy to [Modal](https://modal.com).
 
 ## Local
 
@@ -72,6 +73,64 @@ read-only filesystem path. Any of these work:
 
 For all three: set `MODEL_DIR` env var if the registry path differs from
 the baked-in `models/wine_quality/v1/`.
+
+## Serverless (Modal)
+
+The fastest way to get a public HTTPS URL for the API — no infra, no
+Docker, no cloud account. Modal runs the same FastAPI app in a
+container on their serverless platform (generous free tier).
+
+### One-time setup
+
+```bash
+pip install modal
+modal setup   # opens a browser to link your account
+```
+
+### Deploy
+
+```bash
+make deploy              # production deploy (one URL)
+make deploy-serve        # live-reload dev (URL stays the same, code reloads)
+```
+
+`deploy/modal_app.py` builds a Debian-slim image with all the runtime
+deps, bundles the `src/` tree and the `models/` registry, then serves
+the FastAPI app via `@modal.asgi_app()`.
+
+After `modal deploy` finishes, Modal prints a URL like
+
+```
+https://<your-workspace>--neural-network-api-fastapi-app.modal.run
+```
+
+### Test the live URL
+
+```bash
+URL=https://<your-workspace>--neural-network-api-fastapi-app.modal.run
+
+curl $URL/health
+# {"status":"ok","model_loaded":true}
+
+curl -X POST $URL/predict -H "Content-Type: application/json" \
+  -d '{"fixed_acidity":7.0,"volatile_acidity":0.27,"citric_acid":0.36,
+       "residual_sugar":20.7,"chlorides":0.045,"free_sulfur_dioxide":45.0,
+       "total_sulfur_dioxide":170.0,"density":1.001,"ph":3.0,
+       "sulphates":0.45,"alcohol":8.8}'
+
+curl -X POST $URL/predict/mnist -F "file=@tests/fixtures/sample_digit.png"
+```
+
+### Notes
+
+- Cold-start is ~30-60 s on the first request after the image deploys
+  (PyTorch import is heavy). Subsequent requests hit the warm
+  instance in milliseconds.
+- The image is cached — only rebuilds when `deploy/modal_app.py`
+  changes. To force a rebuild after `requirements.txt` updates, bump
+  the image by editing the file (e.g. add a comment).
+- The free tier includes enough compute for demo traffic; check
+  [modal.com/pricing](https://modal.com/pricing) for limits.
 
 ## Production checklist
 
