@@ -22,5 +22,6 @@ train:
   epochs: 100
   batch_size: 32
   log_every: 10
+  min_acc_delta: 0.0
   mlflow_tracking_uri: null
   mlflow_experiment: wine-quality

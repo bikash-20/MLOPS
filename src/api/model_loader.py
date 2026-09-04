@@ -6,7 +6,10 @@ The wine registry loads ``model.pth``, ``scaler.joblib``, and
 The MNIST registry loads ``model.pth`` and ``model_arch.json``, and serves
 predictions from 28x28 grayscale PNG uploads via PIL.
 
-Both are thread-safe singletons via module-level state.
+The CIFAR registry loads ``best.pt`` (or ``last.pt``) and ``model_arch.json``,
+and serves predictions from 32x32 RGB PNG/JPEG uploads via PIL.
+
+All are thread-safe singletons via module-level state.
 """
 
 from __future__ import annotations
@@ -22,11 +25,26 @@ import numpy as np
 import torch
 from PIL import Image
 
+from src.models.cifar_resnet import CifarResNet
 from src.models.mnist_cnn import SimpleCNN
 from src.models.wine_nn import WineNet
-from src.utils import get_logger, models_path
+from src.utils import get_logger, models_path, resolve_runtime_version
 
 logger = get_logger(__name__)
+
+
+def _resolve_default_version(project: str) -> str:
+    """Resolve the registry version for an API-side loader.
+
+    Honours the ``MODEL_VERSION`` env var (e.g. ``"v2"``, ``"2"``, or
+    ``"latest"``). Falls back to ``"v1"`` if no versions exist (this lets
+    tests construct registries in ``tmp_path`` without having to create
+    real on-disk artifacts first).
+    """
+    try:
+        return resolve_runtime_version(project)
+    except FileNotFoundError:
+        return "v1"
 
 
 class ModelRegistry:
@@ -35,11 +53,16 @@ class ModelRegistry:
     def __init__(
         self,
         project: str = "wine_quality",
-        version: str = "v1",
+        version: str | None = None,
         model_dir: str | None = None,
     ) -> None:
         self.project = project
-        self.version = version
+        # If a version was passed in, honour it; otherwise resolve from
+        # the ``MODEL_VERSION`` env var (or ``"latest"``) so operators
+        # can pin a specific version in production without rebuilding.
+        self.version = version if version is not None else _resolve_default_version(
+            project,
+        )
         self._model: WineNet | None = None
         self._scaler: Any | None = None
         self._feature_names: list[str] | None = None
@@ -200,12 +223,14 @@ class MnistRegistry:
     def __init__(
         self,
         project: str = "mnist",
-        version: str = "v1",
+        version: str | None = None,
         model_dir: str | None = None,
         image_size: int = 28,
     ) -> None:
         self.project = project
-        self.version = version
+        self.version = version if version is not None else _resolve_default_version(
+            project,
+        )
         self.image_size = int(image_size)
         self._model: SimpleCNN | None = None
         self._class_names: list[str] | None = None
@@ -336,4 +361,203 @@ def get_mnist_registry() -> MnistRegistry:
     return _mnist_singleton
 
 
-__all__ = ["MnistRegistry", "ModelRegistry", "get_mnist_registry", "get_registry"]
+# --- CIFAR registry --------------------------------------------------------
+
+
+class CifarRegistry:
+    """Loads and serves a single versioned CIFAR-10 ResNet.
+
+    Inputs are PNG/JPEG bytes that get preprocessed into a normalised
+    ``[1, 3, 32, 32]`` float tensor at inference time, using the canonical
+    CIFAR-10 mean/std stored in ``model_arch.json``.
+
+    Unlike the wine/MNIST registries, this one accepts any aspect ratio
+    or color mode from the upload (RGB, RGBA, L, P) and resizes to
+    ``image_size x image_size`` with bilinear filtering.
+    """
+
+    def __init__(
+        self,
+        project: str = "cifar",
+        version: str | None = None,
+        model_dir: str | None = None,
+        image_size: int = 32,
+        checkpoint: str = "best.pt",
+    ) -> None:
+        self.project = project
+        self.version = version if version is not None else _resolve_default_version(
+            project,
+        )
+        self.image_size = int(image_size)
+        self.checkpoint_name = checkpoint
+        self._model: CifarResNet | None = None
+        self._class_names: list[str] | None = None
+        self._metrics: dict[str, Any] | None = None
+        self._mean: tuple[float, ...] = (0.4914, 0.4822, 0.4465)
+        self._std: tuple[float, ...] = (0.2470, 0.2435, 0.2616)
+        self._explicit_dir: str | None = model_dir
+
+    @property
+    def model_dir(self) -> str:
+        if self._explicit_dir is not None:
+            return self._explicit_dir
+        return models_path(f"{self.project}/{self.version}")
+
+    @property
+    def is_loaded(self) -> bool:
+        return self._model is not None
+
+    def load(self, model_cfg: dict[str, Any] | None = None) -> None:
+        """Load CIFAR ResNet weights, arch, and metadata.
+
+        ``model_cfg`` should match keys in ``model_arch.json`` written by
+        ``train_cifar.py``: ``in_channels``, ``num_classes``,
+        ``base_channels``, ``num_blocks_per_stage``, ``dropout``.
+        """
+        if not Path(self.model_dir).exists():
+            raise FileNotFoundError(
+                f"Model registry not found: {self.model_dir}. "
+                "Train first: `python -m src.training.train_cifar`."
+            )
+
+        logger.info("Loading CIFAR model from %s", self.model_dir)
+
+        if model_cfg is None:
+            arch_path = os.path.join(self.model_dir, "model_arch.json")
+            if Path(arch_path).exists():
+                with open(arch_path) as f:
+                    model_cfg = json.load(f)
+            else:
+                # Sensible defaults matching configs/cifar.yaml.
+                model_cfg = {
+                    "in_channels": 3,
+                    "num_classes": 10,
+                    "base_channels": 64,
+                    "num_blocks_per_stage": 2,
+                    "dropout": 0.2,
+                }
+
+        # Pull normalisation constants if present.
+        if "mean" in model_cfg and "std" in model_cfg:
+            self._mean = tuple(float(x) for x in model_cfg["mean"])
+            self._std = tuple(float(x) for x in model_cfg["std"])
+
+        self._model = CifarResNet(
+            in_channels=int(model_cfg.get("in_channels", 3)),
+            num_classes=int(model_cfg.get("num_classes", 10)),
+            base_channels=int(model_cfg.get("base_channels", 64)),
+            num_blocks_per_stage=int(model_cfg.get("num_blocks_per_stage", 2)),
+            dropout=float(model_cfg.get("dropout", 0.2)),
+        )
+        # Prefer the best checkpoint, fall back to last.
+        candidates = [self.checkpoint_name, "best.pt", "last.pt", "model.pth"]
+        loaded_from: str | None = None
+        for name in candidates:
+            state_path = os.path.join(self.model_dir, name)
+            if Path(state_path).exists():
+                self._model.load_state_dict(
+                    torch.load(state_path, map_location="cpu"),
+                )
+                loaded_from = name
+                break
+        if loaded_from is None:
+            raise FileNotFoundError(
+                f"No checkpoint found in {self.model_dir}. "
+                f"Tried: {candidates}",
+            )
+        self._model.eval()
+        logger.info("Loaded CIFAR checkpoint: %s", loaded_from)
+
+        class_names_path = os.path.join(self.model_dir, "class_names.json")
+        if Path(class_names_path).exists():
+            self._class_names = json.loads(Path(class_names_path).read_text())
+        else:
+            self._class_names = [
+                str(i) for i in range(int(model_cfg.get("num_classes", 10)))
+            ]
+
+        metrics_path = os.path.join(self.model_dir, "metrics.json")
+        if Path(metrics_path).exists():
+            self._metrics = json.loads(Path(metrics_path).read_text())
+
+    def predict(self, image_bytes: bytes) -> dict[str, Any]:
+        """Run inference on raw image bytes.
+
+        Returns:
+            Dict with ``label``, ``confidence``, ``probabilities``,
+            ``top5`` (list of {label, probability}), and ``model_version``.
+        """
+        if not self.is_loaded:
+            raise RuntimeError("Model is not loaded. Call .load() first.")
+
+        assert self._class_names is not None
+        tensor = self._preprocess(image_bytes)
+
+        with torch.no_grad():
+            logits = self._model(tensor)
+            probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+
+        idx = int(np.argmax(probs))
+        # Build top-5 list (or N if fewer classes).
+        n = len(self._class_names)
+        top_k = min(5, n)
+        top_indices = np.argsort(probs)[::-1][:top_k]
+        top5 = [
+            {"label": self._class_names[int(i)], "probability": float(probs[int(i)])}
+            for i in top_indices
+        ]
+        return {
+            "label": self._class_names[idx],
+            "confidence": float(probs[idx]),
+            "probabilities": {c: float(p) for c, p in zip(self._class_names, probs)},
+            "top5": top5,
+            "model_version": self.version,
+        }
+
+    def _preprocess(self, image_bytes: bytes) -> torch.Tensor:
+        """Decode bytes -> PIL -> 32x32 RGB -> normalised tensor.
+
+        Mirrors the train-time transform: ToTensor + Normalize(mean, std).
+        """
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+        except Exception as exc:
+            raise ValueError(f"Could not decode image: {exc}") from exc
+
+        # Always go through RGB so normalisation matches training.
+        img = img.convert("RGB")
+        if img.size != (self.image_size, self.image_size):
+            img = img.resize(
+                (self.image_size, self.image_size),
+                resample=Image.Resampling.BILINEAR,
+            )
+        arr = np.asarray(img, dtype=np.float32) / 255.0  # (H, W, 3)
+        # Normalise per channel.
+        mean = np.asarray(self._mean, dtype=np.float32)
+        std = np.asarray(self._std, dtype=np.float32)
+        arr = (arr - mean) / std  # broadcast (H, W, 3)
+        # ToTensor: HWC -> CHW, plus batch dimension.
+        tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
+        return tensor
+
+
+_cifar_singleton: CifarRegistry | None = None
+
+
+def get_cifar_registry() -> CifarRegistry:
+    """Return the process-wide CIFAR registry singleton (lazy-loaded)."""
+    global _cifar_singleton
+    if _cifar_singleton is None:
+        _cifar_singleton = CifarRegistry()
+        _cifar_singleton.load()
+    return _cifar_singleton
+
+
+__all__ = [
+    "CifarRegistry",
+    "MnistRegistry",
+    "ModelRegistry",
+    "get_cifar_registry",
+    "get_mnist_registry",
+    "get_registry",
+]

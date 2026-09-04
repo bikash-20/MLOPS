@@ -70,9 +70,10 @@ image = (
 
 @app.function(
     image=image,
-    # 1 vCPU + 2 GB RAM is plenty for a FastAPI worker + a small CNN.
+    # 1 vCPU + 3 GB RAM is enough for FastAPI + WineNet (~30k params) +
+    # SimpleCNN (~104k params) + CifarResNet (~11M params).
     cpu=1.0,
-    memory=2048,
+    memory=3072,
     # Allow longer cold-start tolerance for image pull + torch import.
     timeout=300,
     # Keep one warm instance to absorb bursty traffic.

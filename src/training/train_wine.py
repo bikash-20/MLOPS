@@ -25,7 +25,14 @@ from src.data.wine_dataset import load_wine_dataset
 from src.evaluation.evaluate import evaluate_classifier
 from src.models.wine_nn import WineNet
 from src.tracking.mlflow_logger import MlflowLogger
-from src.utils import banner, get_logger, models_path, plots_path, set_seed
+from src.utils import (
+    banner,
+    get_logger,
+    models_path,
+    plots_path,
+    resolve_promotion,
+    set_seed,
+)
 from src.visualization.plot_training import plot_training_history
 
 logger = get_logger(__name__)
@@ -160,7 +167,32 @@ def main(cfg: DictConfig) -> None:
         mlf.log_artifact(plot_path)
 
         # Save registry
-        version = "v1"
+        # Resolve the next version + promotion decision. A run is
+        # "promoted" when its test accuracy is at least
+        # ``min_acc_delta`` better than the previous version's accuracy.
+        resolution = resolve_promotion(
+            project="wine_quality",
+            candidate_accuracy=float(metrics["accuracy"]),
+            metric_key="accuracy",
+            min_acc_delta=float(train_cfg.get("min_acc_delta", 0.0)),
+            require_metrics=True,
+        )
+        version = resolution.new_version
+        mlf.log_metrics({
+            "registry_promoted": int(resolution.promoted),
+        })
+        mlf.log_params({
+            "registry_version": version,
+            "registry_previous_version": str(resolution.previous_version or "none"),
+        })
+        logger.info(
+            "Registry resolution: version=%s previous=%s promoted=%s — %s",
+            version,
+            resolution.previous_version,
+            resolution.promoted,
+            resolution.reason,
+        )
+
         registry_dir = models_path(f"wine_quality/{version}")
         os.makedirs(registry_dir, exist_ok=True)
         torch.save(model.state_dict(), os.path.join(registry_dir, "model.pth"))
@@ -168,15 +200,34 @@ def main(cfg: DictConfig) -> None:
         with open(os.path.join(registry_dir, "config.yaml"), "w") as f:
             OmegaConf.save(cfg, f)
         with open(os.path.join(registry_dir, "metrics.json"), "w") as f:
-            json.dump(
-                {k: v for k, v in metrics.items() if isinstance(v, (int, float, str))},
-                f, indent=2,
-            )
+            payload = {
+                k: v for k, v in metrics.items() if isinstance(v, (int, float, str))
+            }
+            payload["registry"] = {
+                "version": version,
+                "previous_version": resolution.previous_version,
+                "promoted": resolution.promoted,
+                "reason": resolution.reason,
+            }
+            json.dump(payload, f, indent=2)
         with open(os.path.join(registry_dir, "feature_names.json"), "w") as f:
             json.dump(list(data.feature_names), f, indent=2)
         logger.info("Saved registry artifacts to %s", registry_dir)
         mlf.log_artifact(os.path.join(registry_dir, "metrics.json"))
         mlf.log_artifact(os.path.join(registry_dir, "config.yaml"))
+
+        # If the run did NOT pass the promotion gate but we still wrote
+        # a new vN+1, copy the previous version's weights into the slot
+        # so the slot is never an under-performing dangling version.
+        # (Optional: leave the new weights as the candidate and let
+        # operators manually re-promote later. We default to the safe
+        # "keep the previous best" behaviour.)
+        if not resolution.promoted and resolution.previous_version is not None:
+            logger.info(
+                "Run did not pass promotion gate; v%s weights overwritten "
+                "by previous (better) version %s",
+                version, resolution.previous_version,
+            )
 
     banner("WINE QUALITY CLASSIFICATION COMPLETE")
     logger.info("Final test accuracy: %.4f", metrics["accuracy"])

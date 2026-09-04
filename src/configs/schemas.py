@@ -95,6 +95,9 @@ class WineTrainConfig:
     epochs: int = 100
     batch_size: int = 32
     log_every: int = 10
+    # Minimum accuracy improvement over previous version to be promoted
+    # to a new ``vN+1`` in the on-disk registry. See mnist config.
+    min_acc_delta: float = 0.0
     mlflow_tracking_uri: str | None = None
     mlflow_experiment: str = "wine-quality"
 
@@ -124,8 +127,60 @@ class MnistTrainConfig:
     epochs: int = 5
     batch_size: int = 128
     log_every: int = 1
+    # Minimum accuracy improvement over previous version to be promoted
+    # to a new ``vN+1`` in the on-disk registry. Set to 0 to accept any
+    # improvement (or tie). Set higher to require meaningful gains.
+    min_acc_delta: float = 0.0
     mlflow_tracking_uri: str | None = None
     mlflow_experiment: str = "mnist-cnn"
+
+
+# --- CIFAR-10-specific configs (no inheritance — Hydra struct-friendly) ----
+
+
+@dataclass
+class CifarDataConfig:
+    """CIFAR-10 uses the canonical 50k/10k split; we further carve 5k for val."""
+
+    val_size: float = 0.1
+    random_seed: int = 42
+
+
+@dataclass
+class CifarModelConfig:
+    """CIFAR-style ResNet (3x3 stem, no maxpool) trained from scratch."""
+
+    name: str = "cifar_resnet18"
+    in_channels: int = 3
+    num_classes: int = 10
+    # Backbone width (CIFAR ResNet paper keeps this small: 16 -> 32 -> 64).
+    base_channels: int = 64
+    num_blocks_per_stage: int = 2  # 2 blocks per stage -> ~11M params
+    dropout: float = 0.2
+
+
+@dataclass
+class CifarTrainConfig:
+    """Training loop with OneCycle LR + early stopping + best checkpoint."""
+
+    learning_rate: float = 0.1  # OneCycle max_lr; SGD needs higher than Adam
+    epochs: int = 20
+    batch_size: int = 128
+    weight_decay: float = 5e-4
+    momentum: float = 0.9
+    log_every: int = 1
+    # OneCycle scheduler
+    scheduler: str = "one_cycle"
+    pct_start: float = 0.1
+    # Early stopping on val accuracy
+    early_stop_patience: int = 5
+    # Minimum accuracy improvement over previous version to be promoted
+    # to a new ``vN+1`` in the on-disk registry.
+    min_acc_delta: float = 0.0
+    # Number of dataloader workers (0 is safe in tests/CI; >0 on real hosts).
+    num_workers: int = 0
+    mlflow_tracking_uri: str | None = None
+    mlflow_experiment: str = "cifar10-resnet"
 
 
 # --- Top-level Configs (kept for direct programmatic use) ------------------

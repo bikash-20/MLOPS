@@ -21,5 +21,6 @@ train:
   epochs: 5
   batch_size: 128
   log_every: 1
+  min_acc_delta: 0.0
   mlflow_tracking_uri: null
   mlflow_experiment: mnist-cnn

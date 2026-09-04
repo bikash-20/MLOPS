@@ -2,7 +2,7 @@
 # Run `make help` for a list of targets.
 
 .PHONY: help install test test-unit test-integration test-api \
-        train-iris train-wine train-mnist api mlflow-ui \
+        train-iris train-wine train-mnist train-cifar api mlflow-ui \
         docker-build docker-run docker-up docker-down \
         deploy deploy-serve \
         lint format clean
@@ -47,10 +47,28 @@ train-mnist: ## Train the MNIST CNN (downloads MNIST on first run).
 train-mnist-fast: ## Train the MNIST CNN for just 1 epoch (smoke test).
 	python -m src.training.train_mnist train.epochs=1
 
+train-cifar: ## Train the CIFAR-10 ResNet (downloads CIFAR on first run, ~10-30 min).
+	python -m src.training.train_cifar
+
+train-cifar-fast: ## Train the CIFAR ResNet for just 2 epochs (smoke test).
+	python -m src.training.train_cifar train.epochs=2 model.base_channels=16
+
 # --- API ------------------------------------------------------------------
 
 api: ## Run the FastAPI service locally.
 	uvicorn src.api.main:app --reload --port 8000
+
+api-v2: ## Run the FastAPI service pinned to MODEL_VERSION=v2 (override on CLI too).
+	MODEL_VERSION=v2 uvicorn src.api.main:app --reload --port 8000
+
+models: ## List every model version on disk.
+	python -c "from src.utils import list_versions; \
+	import sys; \
+	[print(f'{p}: {list_versions(p) or \"(none)\"}') for p in ('wine_quality', 'mnist', 'cifar')]"
+
+promote-VERSION: ## Manually pin a specific version (usage: make promote-VERSION v=2 project=wine_quality).
+	@echo "Use the MODEL_VERSION env var to pin a version at runtime, e.g.:"
+	@echo "  MODEL_VERSION=v$(v) make api"
 
 mlflow-ui: ## Launch MLflow tracking UI on http://localhost:5000.
 	mlflow ui --port 5000

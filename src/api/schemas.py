@@ -62,3 +62,37 @@ class MnistPredictionResponse(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     probabilities: dict[str, float]
     model_version: str
+
+
+# --- CIFAR schemas ---------------------------------------------------------
+
+
+class CifarPredictionResponse(BaseModel):
+    """API response for a single CIFAR-10 image prediction."""
+
+    label: str = Field(..., description="predicted class name")
+    confidence: float = Field(..., ge=0, le=1)
+    probabilities: dict[str, float]
+    top5: list[dict[str, float | str]]
+    model_version: str
+
+
+# --- Registry listing schemas ---------------------------------------------
+
+
+class RegistryVersionInfo(BaseModel):
+    """One version entry in the registry listing response."""
+
+    version: str
+    available: bool
+    metrics: dict = Field(default_factory=dict)
+    promoted: bool = False
+    reason: str = ""
+
+
+class RegistryInfo(BaseModel):
+    """One project (wine_quality / mnist / cifar) and its versions."""
+
+    project: str
+    active_version: str | None = None  # currently loaded by the API
+    versions: list[RegistryVersionInfo]

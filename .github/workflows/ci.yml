@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 jobs:
   lint-and-test:
@@ -62,3 +63,54 @@ jobs:
           sleep 8
           curl -sf http://localhost:8000/health || (docker logs wine-api-test && exit 1)
           docker stop wine-api-test
+
+  deploy-modal:
+    name: Deploy to Modal (serverless)
+    # Only deploy on direct pushes to main (not on PRs from forks) and
+    # only if lint + tests + docker build all passed. Use workflow_dispatch
+    # for manual deploys.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint-and-test, docker-build]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ github.event.repository.owner }}--neural-network-api-fastapi-app.modal.run
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install modal CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'modal>=0.63,<2.0'
+
+      - name: Configure modal token
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          # Modal's CLI picks up the env vars automatically; no `modal token new` needed.
+          modal --version
+
+      - name: Deploy to Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          modal deploy deploy/modal_app.py
+
+      - name: Smoke test the deployed URL
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          URL="https://${{ github.event.repository.owner }}--neural-network-api-fastapi-app.modal.run"
+          sleep 10
+          curl -sf "${URL}/health" && echo
+          curl -sf "${URL}/model/info"  && echo
+          curl -sf "${URL}/models"      && echo
