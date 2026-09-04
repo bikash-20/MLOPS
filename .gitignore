@@ -38,6 +38,11 @@ models/*.npz
 models/*.pth
 models/*.joblib
 
+# Training plots / figures (regenerated on every run)
+plots/*.png
+plots/*.jpg
+plots/*.pdf
+
 # Training logs (regenerated on every run)
 *.log
 
